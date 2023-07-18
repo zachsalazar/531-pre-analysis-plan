@@ -1,0 +1,199 @@
+---
+title: "PS531 Pre-Analysis Plan Code Appendix"
+author: "Zach Salazar"
+format: pdf
+---
+
+## Loading in the LEAD dataset and selecting needed variables, followed by subsetting data to only include US Presidents.
+
+``` {r, message=FALSE, warnings=FALSE}
+# Set working directory
+setwd("/Users/zach/Documents/GitHub/531-pre-analysis-plan")
+
+# Load packages
+library(tidyverse)
+
+# Load in LEAD dataset
+lead <- load("leaders_datapaper_replication_final_9_10_15.RData")
+
+# Rename dataset
+lead <- x
+
+# Choose relevant variables
+my_vars1 <- c("idacr", "leadername", 
+              "startdate", "enddate", 
+              "milservice", "combat", 
+              "polity")
+
+# Select only relevant variables
+lead <- lead %>%
+  dplyr::select(all_of(c(my_vars1)))
+
+# Filter leaders to only US Presidents
+lead_USA <- lead %>%
+  filter(idacr == "USA")
+
+
+```
+
+## Loading in the MIDs dataset and selecting relevant variables, followed by subsetting for MIDs only involving the US.
+
+``` {r, message=FALSE, warnings=FALSE}
+
+# Load in MIDs dataset
+mids <- read.csv("dyadic_mid_4.02.csv")
+
+# Choose relevant variables
+my_vars2 <- c("namea", "strtmnth", "strtday", 
+              "strtyr", "endmnth", "endday", 
+              "endyear", "rolea", "outcome", 
+              "cumdurat", "fatlev","fatleva", 
+              "revstata","hihost", "highmcaa", 
+              "war", "severity")
+
+# Select only relevant variables
+mids <- mids %>%
+  dplyr::select(all_of(c(my_vars2)))
+
+# Filter MIDs to only those involving US
+mids_USA <- mids %>%
+  filter(namea == "USA")
+
+```
+
+## Loading in the National Material Capabilities dataset and filtering for US CINC scores.
+
+``` {r, message=FALSE, warnings=FALSE}
+
+# Load in NMC dataset
+cinc <- read.csv("NMC-60-abridged.csv")
+
+# Choose relevant variables
+my_vars3 <- c("stateabb", "year", "cinc")
+
+# Select only relevant variables
+cinc <- cinc %>%
+  dplyr::select(all_of(c(my_vars3)))
+
+# Filter for US CINC scores
+cinc_US <- cinc %>%
+  filter(stateabb == "USA")
+
+```
+
+## Stratification
+
+```{r, message=FALSE, warnings=FALSE}
+
+# Load packages
+library(dplyr)
+
+# Generate fake data
+set.seed(123)
+n <- 100
+
+# Stratum variable
+stratum <- sample(c("pre-1898", "1898-1945", "post-WWII"), n, replace = TRUE)
+# Outcome variable
+outcome <- rnorm(n, mean = 10, sd = 2)
+
+# Create a data frame
+data <- data.frame(stratum, outcome)
+
+# Stratify the data
+stratified_data <- data %>% 
+  group_by(stratum)
+
+# Perform analysis within each stratum
+stratified_data <- stratified_data %>% 
+  summarize(mean_outcome = mean(outcome))
+
+# Results
+print(stratified_data)
+
+# Plot of results
+ggplot(stratified_data, aes(x = stratum, y = mean_outcome)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  labs(x = "Stratum", y = "Mean Outcome") +
+  ggtitle("Mean Outcome by Stratum")
+
+
+```
+
+## Linear regression plots for MID initiations and outcomes
+
+``` {r, message=FALSE, warnings=FALSE}
+
+# Load packages
+library(ggplot2)
+
+# Set working directory
+setwd("~/Documents/GitHub/531-pre-analysis-plan")
+
+# Load in US presidents dataset
+pres <- read.csv("us_presidents.csv")
+
+# Linear regression plot for total MID initiations
+ggplot(pres, aes(x = rank, y = initiated)) + 
+       labs(title = "Total Initiations", 
+            x = "Rank", y = "Initiations") + 
+       geom_point() + stat_smooth(method = "lm", 
+                                  formula = y ~ x, 
+                                  geom = "smooth")
+
+# Linear regression plot for MID outcomes
+ggplot(pres, aes(x = rank, y = pctwon)) + 
+       labs(title = "MID Wins", 
+            x = "Rank", y = "Wins") + 
+       geom_point() + stat_smooth(method = "lm", 
+                                  formula = y ~ x, 
+                                  geom = "smooth")
+
+```
+
+## Difference-in-Differences, bias, and MSE
+
+``` {r, message=FALSE, warnings=FALSE}
+
+# Load packages
+library(dplyr)
+library(ggplot2)
+
+# Set seed
+set.seed(123)
+
+# Create a dataset with pre and post-treatment periods
+pre_period <- data.frame(
+  president = rep(c("Military", "Non-Military"), each = 5),
+  time = rep("Pre", 10),
+  foreign_policy = rnorm(10, mean = 5, sd = 1))
+
+post_period <- data.frame(
+  president = rep(c("Military", "Non-Military"), each = 5),
+  time = rep("Post", 10),
+  foreign_policy = rnorm(10, mean = 8, sd = 1))
+
+# Combine pre and post periods
+data <- rbind(pre_period, post_period)
+
+# Visualize the data
+ggplot(data, aes(x = time, y = foreign_policy, fill = president)) +
+  geom_boxplot() +
+  labs(x = "Time Period", y = "Foreign Policy") +
+  ggtitle("Foreign Policy between Military and Non-Military Presidents")
+
+# Difference-in-Differences analysis
+model <- lm(foreign_policy ~ time * president, data = data)
+summary(model)
+
+# Bias
+bias <- coef(model)["timePost:presidentNon-Military"]
+print(paste("Bias:", bias))
+
+# MSE
+predicted_values <- predict(model)
+mse <- mean((predicted_values - data$foreign_policy)^2)
+print(paste("MSE:", mse))
+
+```
+
